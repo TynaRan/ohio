@@ -188,9 +188,9 @@ local function handleMovement()
                 end
             end
             
-            h.HipHeight = wallHeight + 20
+            h.HipHeight = wallHeight + 5
         else
-            h.HipHeight = 0
+            h.HipHeight = 2
         end
     end
 
