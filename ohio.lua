@@ -410,15 +410,29 @@ local Melee = {
     HitCount = 8,
     Delay = 0.1,
     LastAttack = 0,
-    MaxDistance = 50
+    MaxDistance = 50,
+    StompActive = false,
+    StompDelay = 0.2,
+    LastStomp = 0
 }
 
-local MeleeBox = Tabs.Combat:AddRightGroupbox('Auto Melee')
+local MeleeBox = Tabs.Combat:AddRightGroupbox('Melee Combat')
 MeleeBox:AddToggle('AutoMeleeToggle', {
     Text = 'Auto Melee',
     Default = false,
     Callback = function(state)
         Melee.Active = state
+    end
+})
+
+MeleeBox:AddSlider('MeleeRange', {
+    Text = 'Attack Range',
+    Default = 50,
+    Min = 10,
+    Max = 100,
+    Rounding = 0,
+    Callback = function(value)
+        Melee.MaxDistance = value
     end
 })
 
@@ -441,6 +455,25 @@ MeleeBox:AddSlider('MeleeDelay', {
     Rounding = 2,
     Callback = function(value)
         Melee.Delay = value
+    end
+})
+
+MeleeBox:AddToggle('AutoStompToggle', {
+    Text = 'Auto Stomp',
+    Default = false,
+    Callback = function(state)
+        Melee.StompActive = state
+    end
+})
+
+MeleeBox:AddSlider('StompDelay', {
+    Text = 'Stomp Delay',
+    Default = 0.2,
+    Min = 0.1,
+    Max = 1.0,
+    Rounding = 1,
+    Callback = function(value)
+        Melee.StompDelay = value
     end
 })
 
@@ -498,9 +531,26 @@ local function ExecuteMelee(target)
     end)
 end
 
+local function ExecuteStomp(target)
+    if not target then return end
+    
+    local now = tick()
+    if now - Melee.LastStomp < Melee.StompDelay then return end
+    Melee.LastStomp = now
+    
+    pcall(function()
+        Signal.FireServer("stompPlayer", target)
+    end)
+end
+
 RunService.Heartbeat:Connect(function()
+    local target = GetClosestPlayer()
+    
     if Melee.Active then
-        local target = GetClosestPlayer()
         ExecuteMelee(target)
+    end
+    
+    if Melee.StompActive then
+        ExecuteStomp(target)
     end
 end)
