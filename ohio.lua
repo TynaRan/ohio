@@ -404,12 +404,14 @@ end)
 
 -- Initial update
 UpdateBanInfo()
+
 local Melee = {
     Active = false,
     SwingType = "meleejumpKick",
-    HitCount = 500,
-    MaxDistance = 50,
-    InstantKillMode = true
+    HitCount = 8,
+    Delay = 0.1,
+    LastAttack = 0,
+    MaxDistance = 50
 }
 
 local MeleeBox = Tabs.Combat:AddRightGroupbox('Auto Melee')
@@ -421,22 +423,25 @@ MeleeBox:AddToggle('AutoMeleeToggle', {
     end
 })
 
-MeleeBox:AddToggle('InstantKillToggle', {
-    Text = 'Instant Kill Mode',
-    Default = true,
-    Callback = function(state)
-        Melee.InstantKillMode = state
-    end
-})
-
 MeleeBox:AddSlider('MeleeHitCount', {
     Text = 'Hit Count',
-    Default = 500,
+    Default = 150,
     Min = 1,
-    Max = 1000,
+    Max = 150000,
     Rounding = 0,
     Callback = function(value)
         Melee.HitCount = value
+    end
+})
+
+MeleeBox:AddSlider('MeleeDelay', {
+    Text = 'Attack Delay',
+    Default = 0.01,
+    Min = 0.0001,
+    Max = 0.5,
+    Rounding = 2,
+    Callback = function(value)
+        Melee.Delay = value
     end
 })
 
@@ -477,6 +482,10 @@ end
 local function ExecuteMelee(target)
     if not target then return end
     
+    local now = tick()
+    if now - Melee.LastAttack < Melee.Delay then return end
+    Melee.LastAttack = now
+    
     local hitArgs = {
         hitPlayerId = target.UserId,
         meleeType = Melee.SwingType
@@ -484,19 +493,8 @@ local function ExecuteMelee(target)
     
     pcall(function()
         Signal.FireServer("meleeItemSwing", Melee.SwingType)
-        if Melee.InstantKillMode then
-            local start = tick()
-            while tick() - start < 0.0000001 do
-                for i = 1, 999 do
-                    Signal.FireServer("meleeItemHit", "player", hitArgs)
-                end
-                task.wait()
-            end
-        else
-            for i = 1, Melee.HitCount do
-                Signal.FireServer("meleeItemHit", "player", hitArgs)
-                task.wait()
-            end
+        for i = 1, Melee.HitCount do
+            Signal.FireServer("meleeItemHit", "player", hitArgs)
         end
     end)
 end
@@ -507,6 +505,7 @@ RunService.Heartbeat:Connect(function()
         ExecuteMelee(target)
     end
 end)
+
 local ViewVisualizer = {
     Enabled = false,
     RefreshRate = 0.1,
