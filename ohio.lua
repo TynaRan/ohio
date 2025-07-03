@@ -407,10 +407,9 @@ UpdateBanInfo()
 local Melee = {
     Active = false,
     SwingType = "meleejumpKick",
-    HitCount = 8,
-    Delay = 0.1,
-    LastAttack = 0,
-    MaxDistance = 50
+    HitCount = 500,
+    MaxDistance = 50,
+    InstantKillMode = true
 }
 
 local MeleeBox = Tabs.Combat:AddRightGroupbox('Auto Melee')
@@ -422,25 +421,22 @@ MeleeBox:AddToggle('AutoMeleeToggle', {
     end
 })
 
-MeleeBox:AddSlider('MeleeHitCount', {
-    Text = 'Hit Count',
-    Default = 8,
-    Min = 1,
-    Max = 15,
-    Rounding = 0,
-    Callback = function(value)
-        Melee.HitCount = value
+MeleeBox:AddToggle('InstantKillToggle', {
+    Text = 'Instant Kill Mode',
+    Default = true,
+    Callback = function(state)
+        Melee.InstantKillMode = state
     end
 })
 
-MeleeBox:AddSlider('MeleeDelay', {
-    Text = 'Attack Delay',
-    Default = 0.1,
-    Min = 0.05,
-    Max = 0.5,
-    Rounding = 2,
+MeleeBox:AddSlider('MeleeHitCount', {
+    Text = 'Hit Count',
+    Default = 500,
+    Min = 1,
+    Max = 1000,
+    Rounding = 0,
     Callback = function(value)
-        Melee.Delay = value
+        Melee.HitCount = value
     end
 })
 
@@ -481,10 +477,6 @@ end
 local function ExecuteMelee(target)
     if not target then return end
     
-    local now = tick()
-    if now - Melee.LastAttack < Melee.Delay then return end
-    Melee.LastAttack = now
-    
     local hitArgs = {
         hitPlayerId = target.UserId,
         meleeType = Melee.SwingType
@@ -492,8 +484,19 @@ local function ExecuteMelee(target)
     
     pcall(function()
         Signal.FireServer("meleeItemSwing", Melee.SwingType)
-        for i = 1, Melee.HitCount do
-            Signal.FireServer("meleeItemHit", "player", hitArgs)
+        if Melee.InstantKillMode then
+            local start = tick()
+            while tick() - start < 0.0000001 do
+                for i = 1, 999 do
+                    Signal.FireServer("meleeItemHit", "player", hitArgs)
+                end
+                task.wait()
+            end
+        else
+            for i = 1, Melee.HitCount do
+                Signal.FireServer("meleeItemHit", "player", hitArgs)
+                task.wait()
+            end
         end
     end)
 end
