@@ -388,7 +388,7 @@ BanBox:AddButton({
 
 -- Auto-update every 5 seconds
 spawn(function()
-    while wait(5) do
+    while wait(4) do
         if Library.Unloaded then break end
         UpdateBanInfo()
         
@@ -404,3 +404,103 @@ end)
 
 -- Initial update
 UpdateBanInfo()
+local Melee = {
+    Active = false,
+    SwingType = "meleejumpKick",
+    HitCount = 8,
+    Delay = 0.1,
+    LastAttack = 0,
+    MaxDistance = 50
+}
+
+local MeleeBox = Tabs.Combat:AddRightGroupbox('Auto Melee')
+MeleeBox:AddToggle('AutoMeleeToggle', {
+    Text = 'Auto Melee',
+    Default = false,
+    Callback = function(state)
+        Melee.Active = state
+    end
+})
+
+MeleeBox:AddSlider('MeleeHitCount', {
+    Text = 'Hit Count',
+    Default = 8,
+    Min = 1,
+    Max = 15,
+    Rounding = 0,
+    Callback = function(value)
+        Melee.HitCount = value
+    end
+})
+
+MeleeBox:AddSlider('MeleeDelay', {
+    Text = 'Attack Delay',
+    Default = 0.1,
+    Min = 0.05,
+    Max = 0.5,
+    Rounding = 2,
+    Callback = function(value)
+        Melee.Delay = value
+    end
+})
+
+local function UpdatePlayerList()
+    local now = tick()
+    if now - dateUpd < 0.5 then return end    
+    Plist = Players:GetPlayers()
+    dateUpd = now
+end
+
+local function GetClosestPlayer()
+    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local myPos = hrp.Position
+    UpdatePlayerList()
+    
+    local closest, closestDist = nil, Melee.MaxDistance
+    
+    for _, player in ipairs(Plist) do
+        if player ~= lp and player.Character then
+            local hum = player.Character:FindFirstChild("Humanoid")
+            local otherHRP = player.Character:FindFirstChild("HumanoidRootPart")
+            
+            if hum and hum.Health > 0 and otherHRP then
+                local dist = (otherHRP.Position - myPos).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = player
+                end
+            end
+        end
+    end
+    
+    return closest
+end
+
+local function ExecuteMelee(target)
+    if not target then return end
+    
+    local now = tick()
+    if now - Melee.LastAttack < Melee.Delay then return end
+    Melee.LastAttack = now
+    
+    local hitArgs = {
+        hitPlayerId = target.UserId,
+        meleeType = Melee.SwingType
+    }
+    
+    pcall(function()
+        Signal.FireServer("meleeItemSwing", Melee.SwingType)
+        for i = 1, Melee.HitCount do
+            Signal.FireServer("meleeItemHit", "player", hitArgs)
+        end
+    end)
+end
+
+RunService.Heartbeat:Connect(function()
+    if Melee.Active then
+        local target = GetClosestPlayer()
+        ExecuteMelee(target)
+    end
+end)
