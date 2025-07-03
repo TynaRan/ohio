@@ -410,29 +410,15 @@ local Melee = {
     HitCount = 8,
     Delay = 0.1,
     LastAttack = 0,
-    MaxDistance = 50,
-    StompActive = false,
-    StompDelay = 0.2,
-    LastStomp = 0
+    MaxDistance = 50
 }
 
-local MeleeBox = Tabs.Combat:AddRightGroupbox('Melee Combat')
+local MeleeBox = Tabs.Combat:AddRightGroupbox('Auto Melee')
 MeleeBox:AddToggle('AutoMeleeToggle', {
     Text = 'Auto Melee',
     Default = false,
     Callback = function(state)
         Melee.Active = state
-    end
-})
-
-MeleeBox:AddSlider('MeleeRange', {
-    Text = 'Attack Range',
-    Default = 50,
-    Min = 10,
-    Max = 100,
-    Rounding = 0,
-    Callback = function(value)
-        Melee.MaxDistance = value
     end
 })
 
@@ -455,25 +441,6 @@ MeleeBox:AddSlider('MeleeDelay', {
     Rounding = 2,
     Callback = function(value)
         Melee.Delay = value
-    end
-})
-
-MeleeBox:AddToggle('AutoStompToggle', {
-    Text = 'Auto Stomp',
-    Default = false,
-    Callback = function(state)
-        Melee.StompActive = state
-    end
-})
-
-MeleeBox:AddSlider('StompDelay', {
-    Text = 'Stomp Delay',
-    Default = 0.2,
-    Min = 0.1,
-    Max = 1.0,
-    Rounding = 1,
-    Callback = function(value)
-        Melee.StompDelay = value
     end
 })
 
@@ -531,26 +498,110 @@ local function ExecuteMelee(target)
     end)
 end
 
-local function ExecuteStomp(target)
-    if not target then return end
-    
-    local now = tick()
-    if now - Melee.LastStomp < Melee.StompDelay then return end
-    Melee.LastStomp = now
-    
-    pcall(function()
-        Signal.FireServer("stompPlayer", target)
-    end)
-end
-
 RunService.Heartbeat:Connect(function()
-    local target = GetClosestPlayer()
-    
     if Melee.Active then
+        local target = GetClosestPlayer()
         ExecuteMelee(target)
     end
-    
-    if Melee.StompActive then
-        ExecuteStomp(target)
+end)
+local ViewVisualizer = {
+    Enabled = false,
+    RefreshRate = 0.1,
+    LastUpdate = 0,
+    VisualParts = {},
+    TargetPlayer = nil
+}
+
+local VisualBox = Tabs.Combat:AddLeftGroupbox('View Visualizer')
+
+VisualBox:AddToggle('ViewVisualizerToggle', {
+    Text = 'Enable View Visualizer',
+    Default = false,
+    Callback = function(state)
+        ViewVisualizer.Enabled = state
+        if not state then
+            for _, part in pairs(ViewVisualizer.VisualParts) do
+                part:Destroy()
+            end
+            ViewVisualizer.VisualParts = {}
+        end
     end
+})
+
+VisualBox:AddDropdown('ViewTargetPlayer', {
+    Text = 'Target Player',
+    Default = 1,
+    Values = {"None"},
+    Callback = function(value)
+        ViewVisualizer.TargetPlayer = value ~= "None" and game.Players[value] or nil
+    end
+})
+
+local function UpdatePlayerList()
+    local names = {"None"}
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player ~= lp then
+            table.insert(names, player.Name)
+        end
+    end
+    Library.Options.ViewTargetPlayer.Values = names
+    Library.Options.ViewTargetPlayer:SetValues()
+end
+
+UpdatePlayerList()
+game.Players.PlayerAdded:Connect(UpdatePlayerList)
+game.Players.PlayerRemoving:Connect(UpdatePlayerList)
+
+local function CreateViewIndicator()
+    local cone = Instance.new("Part")
+    cone.Shape = Enum.PartType.Cylinder
+    cone.Size = Vector3.new(5, 1, 1)
+    cone.Transparency = 0.7
+    cone.Color = Color3.fromRGB(0, 170, 255)
+    cone.Anchored = true
+    cone.CanCollide = false
+    cone.CastShadow = false
+    
+    local line = Instance.new("Part")
+    line.Size = Vector3.new(0.2, 0.2, 10)
+    line.Transparency = 0.5
+    line.Color = Color3.fromRGB(255, 255, 0)
+    line.Anchored = true
+    line.CanCollide = false
+    line.CastShadow = false
+    
+    return {Cone = cone, Line = line}
+end
+
+local function UpdateViewVisualization()
+    if not ViewVisualizer.Enabled or not ViewVisualizer.TargetPlayer then return end
+    
+    local targetChar = ViewVisualizer.TargetPlayer.Character
+    if not targetChar then return end
+    
+    local head = targetChar:FindFirstChild("Head")
+    if not head then return end
+    
+    if #ViewVisualizer.VisualParts == 0 then
+        local parts = CreateViewIndicator()
+        table.insert(ViewVisualizer.VisualParts, parts.Cone)
+        table.insert(ViewVisualizer.VisualParts, parts.Line)
+        parts.Cone.Parent = workspace
+        parts.Line.Parent = workspace
+    end
+    
+    local cameraCF = CFrame.new(head.Position, head.Position + (targetChar:GetRenderCFrame().LookVector * 10))
+    
+    ViewVisualizer.VisualParts[1].CFrame = cameraCF * CFrame.Angles(0, 0, math.rad(90))
+    ViewVisualizer.VisualParts[2].CFrame = CFrame.new(head.Position, head.Position + (targetChar:GetRenderCFrame().LookVector * 10))
+end
+
+RunService.Heartbeat:Connect(function(deltaTime)
+    if not ViewVisualizer.Enabled then return end
+    
+    local now = tick()
+    if now - ViewVisualizer.LastUpdate < ViewVisualizer.RefreshRate then return end
+    ViewVisualizer.LastUpdate = now
+    
+    pcall(UpdateViewVisualization)
 end)
