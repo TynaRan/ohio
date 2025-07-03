@@ -609,35 +609,11 @@ RunService.Heartbeat:Connect(function(deltaTime)
 end)
 --]]
 local MiscBox = Tabs.Combat:AddRightGroupbox('Miscellaneous')
-
 local SoundService = game:GetService("SoundService")
 local clickSound = Instance.new("Sound")
 clickSound.SoundId = "rbxassetid://131828929"
 clickSound.Volume = 0.5
 clickSound.Parent = SoundService
-
-MiscBox:AddTextbox('HeadSizeBox', {
-    Text = 'Hitbox Size',
-    Default = '',
-    TextDisappear = true,
-    Callback = function(Value)
-        clickSound:Play()
-        local size = tonumber(Value)
-        if size then
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= lp and player.Character then
-                    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        hrp.Size = Vector3.new(size, size, size)
-                        hrp.Transparency = 0.7
-                        hrp.CanCollide = false
-                    end
-                end
-            end
-        end
-    end
-})
-
 MiscBox:AddButton('ClientHumanoid', {
     Text = 'Client-Sided Humanoid',
     Func = function()
@@ -659,25 +635,6 @@ MiscBox:AddButton('ClientHumanoid', {
         end
     end
 })
-
-MiscBox:AddButton('ResetHitboxes', {
-    Text = 'Reset Hitboxes',
-    Func = function()
-        clickSound:Play()
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= lp and player.Character then
-                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    hrp.Size = Vector3.new(2, 2, 1)
-                    hrp.Transparency = 0
-                    hrp.CanCollide = true
-                end
-            end
-        end
-        Library:Notify("Hitboxes reset")
-    end
-})
-
 MiscBox:AddSlider('SoundVolume', {
     Text = 'Sound Volume',
     Default = 50,
