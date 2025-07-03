@@ -427,7 +427,7 @@ MeleeBox:AddSlider('MeleeHitCount', {
     Text = 'Hit Count',
     Default = 150,
     Min = 1,
-    Max = 150000,
+    Max = 150,
     Rounding = 0,
     Callback = function(value)
         Melee.HitCount = value
@@ -505,7 +505,7 @@ RunService.Heartbeat:Connect(function()
         ExecuteMelee(target)
     end
 end)
-
+--[[
 local ViewVisualizer = {
     Enabled = false,
     RefreshRate = 0.1,
@@ -607,6 +607,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
     
     pcall(UpdateViewVisualization)
 end)
+--]]
 local MiscBox = Tabs.Combat:AddRightGroupbox('Miscellaneous')
 
 local SoundService = game:GetService("SoundService")
