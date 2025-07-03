@@ -325,3 +325,82 @@ CombatBox:AddToggle('SpinBotAntiDetect', {
         SpinBot.AntiDetection = state
     end
 })
+local BanInfo = {
+    shadowbanned = nil,
+    numshadowbans = 0,
+    shadowbannedAt = 0,
+    shadowbannedExpires = 0
+}
+
+-- Add Ban Info tab to the existing UI
+local BanTab = Window:AddTab('Ban Info')
+
+local BanBox = BanTab:AddLeftGroupbox('Ban Status')
+
+-- Function to update ban information
+local function UpdateBanInfo()
+    for _, entry in ipairs(getgc(true)) do
+        if type(entry) == "table" and rawget(entry, "shadowbannedExpires") then
+            BanInfo.shadowbanned = rawget(entry, "shadowbanned")
+            BanInfo.numshadowbans = rawget(entry, "numshadowbans") or 0
+            BanInfo.shadowbannedAt = rawget(entry, "shadowbannedAt") or 0
+            BanInfo.shadowbannedExpires = rawget(entry, "shadowbannedExpires") or 0
+            break
+        end
+    end
+end
+
+-- Function to format timestamp
+local function fmt(ts)
+    return os.date("%Y-%m-%d %H:%M:%S", ts)
+end
+
+-- Function to calculate remaining time
+local function GetRemainingTime(expires)
+    local now = os.time()
+    local rem = expires - now
+    if rem > 0 then
+        local d = math.floor(rem/86400); rem = rem%86400
+        local h = math.floor(rem/3600);  rem = rem%3600
+        local m = math.floor(rem/60);    rem = rem%60
+        local s = rem
+        return string.format("%d days %d hours %d minutes %d seconds", d, h, m, s)
+    end
+    return "No active ban"
+end
+
+-- Add UI elements
+BanBox:AddLabel('Ban Status', true, 'BanStatusLabel')
+BanBox:AddLabel('Ban Reason', true, 'BanReasonLabel')
+BanBox:AddLabel('Ban Count', true, 'BanCountLabel')
+BanBox:AddLabel('Banned At', true, 'BanTimeLabel')
+BanBox:AddLabel('Expires At', true, 'ExpireTimeLabel')
+BanBox:AddLabel('Time Remaining', true, 'RemainingLabel')
+
+-- Refresh button
+BanBox:AddButton({
+    Text = 'Refresh Info',
+    Func = function()
+        UpdateBanInfo()
+        Library:Notify("Ban information refreshed")
+    end
+})
+
+-- Auto-update every 5 seconds
+spawn(function()
+    while wait(5) do
+        if Library.Unloaded then break end
+        UpdateBanInfo()
+        
+        -- Update UI labels
+        Library.Labels.BanStatusLabel:SetText("Status: " .. (BanInfo.shadowbanned and "BANNED" or "CLEAN"))
+        Library.Labels.BanReasonLabel:SetText("Reason: " .. (BanInfo.shadowbanned or "None"))
+        Library.Labels.BanCountLabel:SetText("Total Bans: " .. BanInfo.numshadowbans)
+        Library.Labels.BanTimeLabel:SetText("Banned At: " .. (BanInfo.shadowbannedAt > 0 and fmt(BanInfo.shadowbannedAt) or "Never"))
+        Library.Labels.ExpireTimeLabel:SetText("Expires At: " .. (BanInfo.shadowbannedExpires > 0 and fmt(BanInfo.shadowbannedExpires) or "N/A"))
+        Library.Labels.RemainingLabel:SetText("Time Left: " .. (BanInfo.shadowbannedExpires > 0 and GetRemainingTime(BanInfo.shadowbannedExpires) or "N/A"))
+    end
+end)
+
+-- Initial update
+UpdateBanInfo()
